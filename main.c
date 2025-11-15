@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define PIXALS_X 128
-#define PIXALS_Y 128
+#define PIXALS_X 32
+#define PIXALS_Y 32
 #define BITS_PER_PIXAL 32
 #define FILE_SIZE (14 + 40 + PIXALS_X * PIXALS_Y * BITS_PER_PIXAL / 8)
 
@@ -19,12 +19,17 @@ typedef int16_t SIGNED_BYTE_2;
 typedef int32_t SIGNED_BYTE_4;
 typedef int64_t SIGNED_BYTE_8;
 
-#define POINTS_SIZE 8
-// static uint64_t points[][3] = {{10, 10, 0xF10010}, {10, 40, 0x01FF11}, {40, 40, 0x1100F1}, {40, 10, 0xFF0FF0}};
-static uint64_t points[][3] = {
-    {22, 62, 0x4F7B29}, {118, 42, 0xF1A4D2}, {110, 110, 0x8A9F77}, {25, 118, 0xC5308E},
-    {39, 25, 0xD6A4E7}, {104, 12, 0x8E3D1F}, {111, 92, 0x1C74B3}, {28, 100, 0x3F57A9}
-};
+typedef struct {
+	SIGNED_BYTE_8 x;
+	SIGNED_BYTE_8 y;
+} Point;
+
+typedef struct {
+	Point p1;
+	Point p2;
+	Point p3;
+	BYTE_4 col;
+} Triangle;
 
 #define PANIC(s) { \
     printf(s); \
@@ -117,8 +122,10 @@ void swap(int* x, int* y) {
 void plot_line_low(SIGNED_BYTE_4 x0, SIGNED_BYTE_4 x1, SIGNED_BYTE_4 y0, SIGNED_BYTE_4 y1, BYTE_4 col, DEFINE_GRID(arr));
 void plot_line_high(SIGNED_BYTE_4 x0, SIGNED_BYTE_4 x1, SIGNED_BYTE_4 y0, SIGNED_BYTE_4 y1, BYTE_4 col, DEFINE_GRID(arr));
 
-void plot_line(SIGNED_BYTE_4 x0, SIGNED_BYTE_4 x1, SIGNED_BYTE_4 y0, SIGNED_BYTE_4 y1, BYTE_4 col, DEFINE_GRID(arr)) {
-	if (abs(y1 - (SIGNED_BYTE_4)y0) < abs(x1 - (SIGNED_BYTE_4)x0)) {
+void plot_line(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr)) {
+	SIGNED_BYTE_8 x0 = p0.x, y0 = p0.y;
+	SIGNED_BYTE_8 x1 = p1.x, y1 = p1.y;
+	if (labs(y1 - y0) < labs(x1 - x0)) {
 		if (x0 > x1) {
 			plot_line_low(x1, x0, y1, y0, col, arr);
 		} else {
@@ -182,18 +189,31 @@ void plot_line_high(SIGNED_BYTE_4 x0, SIGNED_BYTE_4 x1, SIGNED_BYTE_4 y0, SIGNED
 	return;
 }
 
-void draw_line(DEFINE_GRID(arr)) {
-	
-	for (size_t i = 0; i < POINTS_SIZE; i++) {
-		SIGNED_BYTE_4 x0 = points[i][0];
-		SIGNED_BYTE_4 x1 = points[(i + 1) % POINTS_SIZE][0];
-		SIGNED_BYTE_4 y0 = points[i][1];
-		SIGNED_BYTE_4 y1 = points[(i + 1) % POINTS_SIZE][1];
-		BYTE_4 col = points[i][2];
-
-		plot_line(x0, x1, y0, y1, col, arr);
+void draw_line(Point* p_arr, BYTE_8 n, BYTE_4 col, DEFINE_GRID(arr)) {
+	for (BYTE_8 i = 0; i < n; i++) {
+		Point p0 = p_arr[i];
+		Point p1 = p_arr[(i + 1) % n];
+		plot_line(p0, p1, col, arr);
 	}
+}
 
+void draw_triangle(Triangle t, DEFINE_GRID(arr)) {
+	Point p_arr[] = {t.p1, t.p2, t.p3};
+	draw_line(p_arr, 3, t.col, arr);
+}
+
+void draw_polygon(Point* p_arr, BYTE_8 n, BYTE_4 col, DEFINE_GRID(arr)) {
+	for (BYTE_8 i = 0; i + 2 < n; i++) {
+		draw_triangle(
+			(Triangle) {
+				p_arr[i],
+				p_arr[i + 1],
+				p_arr[i + 2],
+				col
+			},
+			arr
+		);
+	}
 }
 
 void write_pixels(FILE* f) {
@@ -207,8 +227,10 @@ void write_pixels(FILE* f) {
 		}
 	}
 	
-	draw_line(pixel_array);
+	Point polygon1[] = {{10, 10}, {20, 10}, {10, 20}, {20, 20}, {15, 30}, {25, 30}, {25, 15}, {20, 10}};
 
+	draw_polygon(polygon1, 8, 0x0FF0F0, pixel_array);
+	
 	for (uint64_t j = 0; j < PIXALS_Y; j++) {
 		for (uint64_t i = 0; i < PIXALS_X; i++) {
 			fwrite(&pixel_array[j][i], 1, BITS_PER_PIXAL / 8, f);
