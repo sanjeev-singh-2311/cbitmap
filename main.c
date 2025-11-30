@@ -2,9 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define PIXALS_X 32
-#define PIXALS_Y 32
-#define BITS_PER_PIXAL 32
+#define PIXALS_X 64
+#define PIXALS_Y 64
+#define BITS_PER_PIXAL 24
 #define FILE_SIZE (14 + 40 + PIXALS_X * PIXALS_Y * BITS_PER_PIXAL / 8)
 
 #define DEFINE_GRID(arr) BYTE_4 arr[PIXALS_Y][PIXALS_X]
@@ -119,29 +119,32 @@ void swap(int* x, int* y) {
 	*y = temp;
 }
 
-void plot_line_low(SIGNED_BYTE_4 x0, SIGNED_BYTE_4 x1, SIGNED_BYTE_4 y0, SIGNED_BYTE_4 y1, BYTE_4 col, DEFINE_GRID(arr));
-void plot_line_high(SIGNED_BYTE_4 x0, SIGNED_BYTE_4 x1, SIGNED_BYTE_4 y0, SIGNED_BYTE_4 y1, BYTE_4 col, DEFINE_GRID(arr));
+void plot_line_low(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr));
+void plot_line_high(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr));
 
 void plot_line(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr)) {
 	SIGNED_BYTE_8 x0 = p0.x, y0 = p0.y;
 	SIGNED_BYTE_8 x1 = p1.x, y1 = p1.y;
 	if (labs(y1 - y0) < labs(x1 - x0)) {
 		if (x0 > x1) {
-			plot_line_low(x1, x0, y1, y0, col, arr);
+			plot_line_low(p1, p0, col, arr);
 		} else {
-			plot_line_low(x0, x1, y0, y1, col, arr);
+			plot_line_low(p0, p1, col, arr);
 		}
 	} else {
 		if (y0 > y1) {
-			plot_line_high(x1, x0, y1, y0, col, arr);
+			plot_line_high(p1, p0, col, arr);
 		} else {
-			plot_line_high(x0, x1, y0, y1, col, arr);
+			plot_line_high(p0, p1, col, arr);
 		}
 	}
 	return;
 }
 
-void plot_line_low(SIGNED_BYTE_4 x0, SIGNED_BYTE_4 x1, SIGNED_BYTE_4 y0, SIGNED_BYTE_4 y1, BYTE_4 col, DEFINE_GRID(arr)) {
+void plot_line_low(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr)) {
+	SIGNED_BYTE_8 x0 = p0.x, y0 = p0.y;
+	SIGNED_BYTE_8 x1 = p1.x, y1 = p1.y;
+
 	SIGNED_BYTE_4 dx = x1 - x0;
 	SIGNED_BYTE_4 dy = y1 - y0;
 	SIGNED_BYTE_4 yi = 1;
@@ -165,7 +168,10 @@ void plot_line_low(SIGNED_BYTE_4 x0, SIGNED_BYTE_4 x1, SIGNED_BYTE_4 y0, SIGNED_
 	return;
 }
 
-void plot_line_high(SIGNED_BYTE_4 x0, SIGNED_BYTE_4 x1, SIGNED_BYTE_4 y0, SIGNED_BYTE_4 y1, BYTE_4 col, DEFINE_GRID(arr)) {
+void plot_line_high(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr)) {
+	SIGNED_BYTE_8 x0 = p0.x, y0 = p0.y;
+	SIGNED_BYTE_8 x1 = p1.x, y1 = p1.y;
+
 	SIGNED_BYTE_4 dx = x1 - x0;
 	SIGNED_BYTE_4 dy = y1 - y0;
 	SIGNED_BYTE_4 xi = 1;
