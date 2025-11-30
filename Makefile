@@ -1,7 +1,7 @@
 CXX = gcc
 CFLAGS = -Wall \
-		 -Wextra \
-		 -g
+				 -Wextra \
+				 -g
 
 .PHONY: run
 

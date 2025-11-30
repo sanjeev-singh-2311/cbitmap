@@ -32,8 +32,8 @@ typedef struct {
 } Triangle;
 
 #define PANIC(s) { \
-    printf(s); \
-    exit(-1); \
+	printf(s); \
+	exit(-1); \
 }
 
 BYTE_8 little_endian(BYTE_8 num) {
@@ -48,7 +48,7 @@ BYTE_8 little_endian(BYTE_8 num) {
 void write_header(FILE* f) {
 	// 14 bytes header
 	BYTE_1 header[14] = {0};
-	
+
 	// 2 Bytes -> BM
 	header[0] |= 'B';
 	header[1] |= 'M';
@@ -64,7 +64,7 @@ void write_header(FILE* f) {
 	header[11] |= (54 >> 8) & 0xFF;
 	header[12] |= (54 >> 16) & 0xFF;
 	header[13] |= (54 >> 24) & 0xFF;
-	
+
 	// write header to file
 	fwrite(header, 14, 1, f);
 }
@@ -243,7 +243,7 @@ void write_pixels(FILE* f) {
 	DEFINE_GRID(pixel_array) = {0};
 	BYTE_8 row_padding = (4 - (PIXALS_X * (BITS_PER_PIXAL >> 3)) % 4) % 4;
 	BYTE_4 padding = 0;
-	
+
 	Point polygon[] = {
 		{10, 10}, {10, 20}, {20, 10},
 		{10, 20}, {20, 10}, {20, 20},
@@ -254,7 +254,7 @@ void write_pixels(FILE* f) {
 	};
 
 	draw_polygon(polygon, 18, 0xFFFFFA, pixel_array);
-	
+
 	for (uint64_t j = 0; j < PIXALS_Y; j++) {
 		for (uint64_t i = 0; i < PIXALS_X; i++) {
 			fwrite(&pixel_array[j][i], 1, BITS_PER_PIXAL / 8, f);
@@ -267,12 +267,12 @@ void write_pixels(FILE* f) {
 }
 
 int main(void) {
-    FILE *out = fopen("output.bmp", "wb");
+	FILE *out = fopen("output.bmp", "wb");
 
-    write_header(out);
+	write_header(out);
 	write_dib(out);
 	write_pixels(out);
-    fclose(out);
+	fclose(out);
 
-    return 0;
+	return 0;
 }
