@@ -203,12 +203,29 @@ void draw_line(Point* p_arr, BYTE_8 n, BYTE_4 col, DEFINE_GRID(arr)) {
 	}
 }
 
+void shade_triangle(Point* p_arr, BYTE_8 n, BYTE_4 col, DEFINE_GRID(arr));
+
 void draw_triangle(Triangle t, DEFINE_GRID(arr)) {
 	Point p_arr[] = {t.p1, t.p2, t.p3};
 	draw_line(p_arr, 3, t.col, arr);
+	// shade_triangle(p_arr, 3, t.col, arr);
 }
 
 void draw_polygon(Point* p_arr, BYTE_8 n, BYTE_4 col, DEFINE_GRID(arr)) {
+	for (BYTE_8 i = 0; i + 2 < n; i += 3) {
+		draw_triangle(
+			(Triangle) {
+				p_arr[i],
+				p_arr[i + 1],
+				p_arr[i + 2],
+				col
+			},
+			arr
+		);
+	}
+}
+
+void draw_polygon_slice(Point* p_arr, BYTE_8 n, BYTE_4 col, DEFINE_GRID(arr)) {
 	for (BYTE_8 i = 0; i + 2 < n; i++) {
 		draw_triangle(
 			(Triangle) {
@@ -224,18 +241,19 @@ void draw_polygon(Point* p_arr, BYTE_8 n, BYTE_4 col, DEFINE_GRID(arr)) {
 
 void write_pixels(FILE* f) {
 	DEFINE_GRID(pixel_array) = {0};
-  	BYTE_8 row_padding = (4 - (PIXALS_X * (BITS_PER_PIXAL / 8)) % 4) % 4;
+	BYTE_8 row_padding = (4 - (PIXALS_X * (BITS_PER_PIXAL >> 3)) % 4) % 4;
 	BYTE_4 padding = 0;
 	
-	for (uint64_t j = 0; j < PIXALS_Y; j++) {
-		for (uint64_t i = 0; i < PIXALS_X; i++) {
-			pixel_array[j][i] = 0xFFFFFFFF;
-		}
-	}
-	
-	Point polygon1[] = {{10, 10}, {20, 10}, {10, 20}, {20, 20}, {15, 30}, {25, 30}, {25, 15}, {20, 10}};
+	Point polygon[] = {
+		{10, 10}, {10, 20}, {20, 10},
+		{10, 20}, {20, 10}, {20, 20},
+		{10, 20}, {20, 20}, {15, 30},
+		{15, 30}, {20, 20}, {25, 30},
+		{20, 10}, {25, 15}, {25, 30},
+		{20, 20}, {20, 10}, {25, 30}
+	};
 
-	draw_polygon(polygon1, 8, 0x0FF0F0, pixel_array);
+	draw_polygon(polygon, 18, 0xFFFFFA, pixel_array);
 	
 	for (uint64_t j = 0; j < PIXALS_Y; j++) {
 		for (uint64_t i = 0; i < PIXALS_X; i++) {
