@@ -25,6 +25,11 @@ typedef struct {
 } Point;
 
 typedef struct {
+	uint64_t size;
+	Point* p_arr;
+} DynPointsArr;
+
+typedef struct {
 	Point p1;
 	Point p2;
 	Point p3;
@@ -113,35 +118,35 @@ void write_dib(FILE* f) {
 	fwrite(dib, 40, 1, f);
 }
 
-void swap(int* x, int* y) {
-	int temp = *x;
+void swap(Point* x, Point* y) {
+	Point temp = *x;
 	*x = *y;
 	*y = temp;
 }
 
-void plot_line_low(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr));
-void plot_line_high(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr));
+void plot_line_low(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr), DynPointsArr* shadables);
+void plot_line_high(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr), DynPointsArr* shadables);
 
-void plot_line(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr)) {
+void plot_line(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr), DynPointsArr* shadables) {
 	SIGNED_BYTE_8 x0 = p0.x, y0 = p0.y;
 	SIGNED_BYTE_8 x1 = p1.x, y1 = p1.y;
 	if (labs(y1 - y0) < labs(x1 - x0)) {
 		if (x0 > x1) {
-			plot_line_low(p1, p0, col, arr);
+			plot_line_low(p1, p0, col, arr, shadables);
 		} else {
-			plot_line_low(p0, p1, col, arr);
+			plot_line_low(p0, p1, col, arr, shadables);
 		}
 	} else {
 		if (y0 > y1) {
-			plot_line_high(p1, p0, col, arr);
+			plot_line_high(p1, p0, col, arr, shadables);
 		} else {
-			plot_line_high(p0, p1, col, arr);
+			plot_line_high(p0, p1, col, arr, shadables);
 		}
 	}
 	return;
 }
 
-void plot_line_low(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr)) {
+void plot_line_low(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr), DynPointsArr* shadables) {
 	SIGNED_BYTE_8 x0 = p0.x, y0 = p0.y;
 	SIGNED_BYTE_8 x1 = p1.x, y1 = p1.y;
 
@@ -158,6 +163,8 @@ void plot_line_low(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr)) {
 
 	for (SIGNED_BYTE_4 x = x0; x <= x1; x++) {
 		arr[y][x] = col;
+		if (shadables != NULL)
+			shadables->p_arr[shadables->size++] = (Point){x, y};
 		if (D > 0) {
 			y += yi;
 			D += (dy - dx) << 1;
@@ -168,7 +175,7 @@ void plot_line_low(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr)) {
 	return;
 }
 
-void plot_line_high(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr)) {
+void plot_line_high(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr), DynPointsArr* shadables) {
 	SIGNED_BYTE_8 x0 = p0.x, y0 = p0.y;
 	SIGNED_BYTE_8 x1 = p1.x, y1 = p1.y;
 
@@ -185,6 +192,8 @@ void plot_line_high(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr)) {
 
 	for (SIGNED_BYTE_4 y = y0; y <= y1; y++) {
 		arr[y][x] = col;
+		if (shadables != NULL)
+			shadables->p_arr[shadables->size++] = (Point){x, y};
 		if (D > 0) {
 			x += xi;
 			D += (dx - dy) << 1;
@@ -195,24 +204,59 @@ void plot_line_high(Point p0, Point p1, BYTE_4 col, DEFINE_GRID(arr)) {
 	return;
 }
 
-void draw_line(Point* p_arr, BYTE_8 n, BYTE_4 col, DEFINE_GRID(arr)) {
+void draw_line(Point* p_arr, BYTE_8 n, BYTE_4 col, DEFINE_GRID(arr), DynPointsArr* shadables) {
 	for (BYTE_8 i = 0; i < n; i++) {
 		Point p0 = p_arr[i];
 		Point p1 = p_arr[(i + 1) % n];
-		plot_line(p0, p1, col, arr);
+		plot_line(p0, p1, col, arr, shadables);
 	}
 }
 
-void shade_triangle(Point* p_arr, BYTE_8 n, BYTE_4 col, DEFINE_GRID(arr));
+void sort(DynPointsArr* shadables) {
+	for (uint64_t i = 0; i < shadables->size; i++) {
+		for (uint64_t j = i + 1; j < shadables->size; j++) {
+			int condition = (shadables->p_arr[i].x > shadables->p_arr[j].x) 
+				|| (
+				(shadables->p_arr[i].x == shadables->p_arr[j].x) && (shadables->p_arr[i].y > shadables->p_arr[j].y)
+			);
 
-void draw_triangle(Triangle t, DEFINE_GRID(arr)) {
+			if (condition) {
+				Point temp = shadables->p_arr[i];
+				shadables->p_arr[i] = shadables->p_arr[j];
+				shadables->p_arr[j] = temp;
+			}
+		}
+	}
+}
+
+void shade_triangle(DynPointsArr* shadables, BYTE_4 col, DEFINE_GRID(arr)) {
+	sort(shadables);
+
+	uint64_t l = 0, r = 1;
+
+	while (l < shadables->size) {
+		while (r < shadables->size && shadables->p_arr[l].x == shadables->p_arr[r].x)
+			r++;
+		if (r != shadables->size - 1) r--;
+
+		plot_line(shadables->p_arr[l], shadables->p_arr[r], col, arr, NULL);
+
+		l = r + 1;
+		r = l + 1;
+	}
+}
+
+void draw_triangle(Triangle t, DEFINE_GRID(arr), DynPointsArr* shadables) {
 	Point p_arr[] = {t.p1, t.p2, t.p3};
-	draw_line(p_arr, 3, t.col, arr);
-	// shade_triangle(p_arr, 3, t.col, arr);
+	draw_line(p_arr, 3, t.col, arr, shadables);
+	shade_triangle(shadables, t.col, arr);
 }
 
 void draw_polygon(Point* p_arr, BYTE_8 n, BYTE_4 col, DEFINE_GRID(arr)) {
+	DynPointsArr* shadables = (DynPointsArr*)malloc(sizeof(DynPointsArr));
+	shadables->p_arr = malloc(sizeof(Point) * 4 * PIXALS_X);
 	for (BYTE_8 i = 0; i + 2 < n; i += 3) {
+		shadables->size = 0;
 		draw_triangle(
 			(Triangle) {
 				p_arr[i],
@@ -220,13 +264,25 @@ void draw_polygon(Point* p_arr, BYTE_8 n, BYTE_4 col, DEFINE_GRID(arr)) {
 				p_arr[i + 2],
 				col
 			},
-			arr
+			arr,
+			shadables
 		);
+		for (uint64_t i = 0; i < shadables->size; i++) {
+			printf("(%ld, %ld)  ", shadables->p_arr[i].x, shadables->p_arr[i].y);
+		}
+		printf("\n");
 	}
+	free(shadables->p_arr);
+	shadables->p_arr = NULL;
+	free(shadables);
+	shadables = NULL;
 }
 
 void draw_polygon_slice(Point* p_arr, BYTE_8 n, BYTE_4 col, DEFINE_GRID(arr)) {
+	DynPointsArr* shadables = (DynPointsArr*)malloc(sizeof(DynPointsArr));
+	shadables->p_arr = malloc(sizeof(Point) * 4 * PIXALS_X);
 	for (BYTE_8 i = 0; i + 2 < n; i++) {
+		shadables->size = 0;
 		draw_triangle(
 			(Triangle) {
 				p_arr[i],
@@ -234,9 +290,18 @@ void draw_polygon_slice(Point* p_arr, BYTE_8 n, BYTE_4 col, DEFINE_GRID(arr)) {
 				p_arr[i + 2],
 				col
 			},
-			arr
+			arr,
+			shadables
 		);
+		for (uint64_t i = 0; i < shadables->size; i++) {
+			printf("(%ld, %ld)  ", shadables->p_arr[i].x, shadables->p_arr[i].y);
+		}
+		printf("\n");
 	}
+	free(shadables->p_arr);
+	shadables->p_arr = NULL;
+	free(shadables);
+	shadables = NULL;
 }
 
 void write_pixels(FILE* f) {
